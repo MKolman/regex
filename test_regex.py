@@ -1,6 +1,6 @@
 import unittest
 
-from regex import Literal, Regex, fail_table
+from regex import Literal, Regex
 
 
 class TestBasic(unittest.TestCase):
@@ -37,17 +37,6 @@ class TestBuilder(unittest.TestCase):
         self.assertFalse(re.match("asf", 0))
 
 
-class TestFailTable(unittest.TestCase):
-    def test_empty(self):
-        self.assertEqual([], fail_table(""))
-
-    def test_simple(self):
-        self.assertEqual([None, None, 1], fail_table("aad"))
-
-    def test_medium(self):
-        self.assertEqual([None, 0, None, 0, 2], fail_table("ababc"))
-
-
 class TestWildcard(unittest.TestCase):
     def test_match(self):
         re = Regex("..")
@@ -60,6 +49,16 @@ class TestWildcard(unittest.TestCase):
         self.assertTrue(re.match("baba"))
         self.assertFalse(re.match("a"))
         self.assertFalse(re.match("ca"))
+
+    def test_wildcard_backtrace(self):
+        re = Regex("a.b")
+        self.assertTrue(re.match("aaab"))
+        self.assertFalse(re.match("accb"))
+
+        re = Regex("a.a.c")
+        self.assertTrue(re.match("aaaaac"))
+        self.assertTrue(re.match("aaaaabc"))
+        self.assertTrue(re.match("abcabacc"))
 
 
 class TestOptional(unittest.TestCase):
