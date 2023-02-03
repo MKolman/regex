@@ -1,42 +1,42 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import typing
 
 
-class Node(typing.Protocol):
-    def match(self, haystack: str, idx: int) -> bool:
-        ...
+@dataclass
+class Node:
+    transitions: dict[str, "Node"] = field(default_factory=dict)
+    trivial_neigbours: list["Node"] = field(default_factory=list)
 
+    def match(self, char: str) -> typing.Optional["Node"]:
+        return self.transitions.get(char)
 
-class Empty:
-    def match(self, haystack: str, idx: int) -> bool:
-        return True
+    def connect_trivial(self, n: "Node"):
+        self.trivial_neigbours.append(n)
+
+    def connect_literal(self, char: str, n: "Node"):
+        self.transitions[char] = n
 
 
 @dataclass
-class Wildcard:
-    success: typing.Optional[Node] = None
+class Automaton:
+    start: Node
+    end: Node
 
-    def match(self, haystack: str, idx: int) -> bool:
-        if idx >= len(haystack):
-            return False
-        if self.success is None:
-            return True
-        return self.success.match(haystack, idx + 1)
+    def concat(self, other: "Automaton") -> "Automaton":
+        self.end.connect(other.start)
+        return Automaton(self.start, other.end)
 
+    def choice(self, *others: "Automaton") -> "Automaton":
+        start, end = Node(), Node()
+        for o in others:
+            start.connect(o.start)
+            o.end.connect(end)
+        return Automaton(start, end)
 
-@dataclass
-class Literal:
-    char: str
-    success: typing.Optional[Node] = None
-
-    def match(self, haystack: str, idx: int) -> bool:
-        if idx >= len(haystack):
-            return False
-        if haystack[idx] != self.char:
-            return False
-        if self.success is None:
-            return True
-        return self.success.match(haystack, idx + 1)
+    def clojure(self) -> "Automaton":
+        self.end.connect(self.start)
+        self.start.connect(self.end)
+        return self
 
 
 class Regex:
