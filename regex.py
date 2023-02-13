@@ -6,9 +6,10 @@ import typing
 class Node:
     transitions: dict[str, "Node"] = field(default_factory=dict)
     trivial_neigbours: list["Node"] = field(default_factory=list)
+    wildcard_match: typing.Optional["Node"] = None
 
     def match(self, char: str) -> typing.Optional["Node"]:
-        return self.transitions.get(char)
+        return self.wildcard_match or self.transitions.get(char)
 
     def connect_trivial(self, n: "Node"):
         self.trivial_neigbours.append(n)
@@ -16,26 +17,29 @@ class Node:
     def connect_literal(self, char: str, n: "Node"):
         self.transitions[char] = n
 
+    def connect_dot(self, n: "Node"):
+        self.wildcard_match = n
+
 
 @dataclass
 class Automaton:
-    start: Node
-    end: Node
+    start: Node = field(default_factory=Node)
+    end: Node = field(default_factory=Node)
 
     def concat(self, other: "Automaton") -> "Automaton":
-        self.end.connect(other.start)
+        self.end.connect_trivial(other.start)
         return Automaton(self.start, other.end)
 
     def choice(self, *others: "Automaton") -> "Automaton":
         start, end = Node(), Node()
         for o in others:
-            start.connect(o.start)
-            o.end.connect(end)
+            start.connect_trivial(o.start)
+            o.end.connect_trivial(end)
         return Automaton(start, end)
 
     def clojure(self) -> "Automaton":
-        self.end.connect(self.start)
-        self.start.connect(self.end)
+        self.end.connect_trivial(self.start)
+        self.start.connect_trivial(self.end)
         return self
 
 
