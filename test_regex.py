@@ -1,12 +1,21 @@
 import unittest
 
-from regex import Literal, Regex
+from regex import Regex
 
 
 class TestBasic(unittest.TestCase):
     def test_has_match(self):
         re = Regex("")
         self.assertTrue(re.match(""))
+
+    def test_trailing_backslash(self):
+        re = Regex("a\\\\")
+        self.assertTrue(re.match("a\\"))
+        self.assertRaisesRegex(
+            ValueError,
+            "Regex cannot end with a single backslash",
+            lambda: Regex("\\"),
+        )
 
     def test_no_match(self):
         re = Regex("a")
@@ -24,17 +33,6 @@ class TestBasic(unittest.TestCase):
     def test_self_similar(self):
         re = Regex("ab")
         self.assertTrue(re.match("aab"))
-
-
-class TestBuilder(unittest.TestCase):
-    def test_match(self):
-        re = Regex._builder("ab")
-        self.assertTrue(re.match("ab", 0))
-
-    def test_builder(self):
-        re = Regex._builder("asdf")
-        self.assertTrue(re.match("asdf", 0))
-        self.assertFalse(re.match("asf", 0))
 
 
 class TestWildcard(unittest.TestCase):
@@ -61,17 +59,103 @@ class TestWildcard(unittest.TestCase):
         self.assertTrue(re.match("abcabacc"))
 
 
+class TestClojure(unittest.TestCase):
+    def test_simple(self):
+        re = Regex("pa*b")
+        self.assertTrue(re.match("pb"))
+        self.assertTrue(re.match("paab"))
+        self.assertTrue(re.match("pabb"))
+        self.assertFalse(re.match("paxb"))
+
+        re = Regex("aa*")
+        self.assertFalse(re.full_match(""))
+        self.assertTrue(re.full_match("a"))
+        self.assertTrue(re.full_match("aaaaa"))
+
+    def test_grouped(self):
+        re = Regex("(aab)*")
+        self.assertTrue(re.full_match(""))
+        self.assertTrue(re.full_match("aab"))
+        self.assertTrue(re.full_match("aabaab"))
+        self.assertTrue(re.full_match("aabaabaab"))
+        self.assertFalse(re.full_match("aabab"))
+        self.assertFalse(re.full_match("aabb"))
+
+
+class TestOr(unittest.TestCase):
+    def test_simpler(self):
+        re = Regex("(a|)")
+        self.assertTrue(re.full_match("a"))
+        self.assertTrue(re.full_match(""))
+
+        re = Regex("(a|b)")
+        self.assertTrue(re.full_match("b"))
+
+        re = Regex("(a|bc)")
+        self.assertTrue(re.full_match("bc"))
+
+    def test_simple(self):
+        re = Regex("(aa*|b|xyz)")
+        self.assertTrue(re.full_match("a"))
+        self.assertTrue(re.full_match("aaa"))
+        self.assertTrue(re.full_match("b"))
+        self.assertTrue(re.full_match("xyz"))
+        self.assertFalse(re.full_match("xyza"))
+
+    def test_advanced(self):
+        re = Regex("((a|b)*|xyz)(p|l)")
+        self.assertTrue(re.full_match("al"))
+        self.assertTrue(re.full_match("babbabaababp"))
+        self.assertTrue(re.full_match("p"))
+        self.assertTrue(re.full_match("xyzp"))
+
+
 class TestOptional(unittest.TestCase):
     def test_simple(self):
         re = Regex("ba?b")
-        self.assertTrue(re.match("bb"))
-        self.assertTrue(re.match("bab"))
-        self.assertFalse(re.match("baab"))
-        self.assertFalse(re.match("b"))
+        self.assertTrue(re.full_match("bb"))
+        self.assertTrue(re.full_match("bab"))
+        self.assertFalse(re.full_match("baab"))
+        self.assertFalse(re.full_match("b"))
 
-    def test_wtf(self):
-        re = Regex("ba?a")
-        self.assertTrue(re.match("ba"))
-        self.assertTrue(re.match("baa"))
-        self.assertFalse(re.match("b"))
-        self.assertFalse(re.match("aa"))
+    def test_bigger(self):
+        re = Regex("b?a?b?")
+        self.assertTrue(re.full_match("bb"))
+        self.assertTrue(re.full_match("bab"))
+        self.assertTrue(re.full_match("b"))
+        self.assertTrue(re.full_match(""))
+        self.assertFalse(re.full_match("baab"))
+
+    def test_debug(self):
+        re = Regex("a?")
+        self.assertFalse(re.full_match("aa"))
+
+
+class TestOneOrMore(unittest.TestCase):
+    def test_simple(self):
+        re = Regex("a+")
+        self.assertFalse(re.full_match(""))
+        self.assertTrue(re.full_match("a"))
+        self.assertTrue(re.full_match("aaaaaa"))
+
+
+class TestRange(unittest.TestCase):
+    def test_simple(self):
+        re = Regex("a{3}")
+        self.assertFalse(re.full_match(""))
+        self.assertFalse(re.full_match("a"))
+        self.assertTrue(re.full_match("aaa"))
+        self.assertFalse(re.full_match("aaaa"))
+
+    def test_range(self):
+        re = Regex("a{3,5}")
+        "aaa(|a|aa) = aaa(|a(|a))"
+        "aaa(aa?)?"
+        self.assertFalse(re.full_match(""))
+        self.assertFalse(re.full_match("a"))
+        self.assertTrue(re.full_match("aaa"))
+        self.assertTrue(re.full_match("aaaa"))
+        self.assertFalse(re.full_match("aaaaaaa"))
+
+
+"""TODO: [adsf]\w\ds^$[]"""

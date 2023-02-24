@@ -1,72 +1,37 @@
-from dataclasses import dataclass, field
-import typing
-
-
-@dataclass
-class Node:
-    transitions: dict[str, "Node"] = field(default_factory=dict)
-    trivial_neigbours: list["Node"] = field(default_factory=list)
-    wildcard_match: typing.Optional["Node"] = None
-
-    def match(self, char: str) -> typing.Optional["Node"]:
-        return self.wildcard_match or self.transitions.get(char)
-
-    def connect_trivial(self, n: "Node"):
-        self.trivial_neigbours.append(n)
-
-    def connect_literal(self, char: str, n: "Node"):
-        self.transitions[char] = n
-
-    def connect_dot(self, n: "Node"):
-        self.wildcard_match = n
-
-
-@dataclass
-class Automaton:
-    start: Node = field(default_factory=Node)
-    end: Node = field(default_factory=Node)
-
-    def concat(self, other: "Automaton") -> "Automaton":
-        self.end.connect_trivial(other.start)
-        return Automaton(self.start, other.end)
-
-    def choice(self, *others: "Automaton") -> "Automaton":
-        start, end = Node(), Node()
-        for o in others:
-            start.connect_trivial(o.start)
-            o.end.connect_trivial(end)
-        return Automaton(start, end)
-
-    def clojure(self) -> "Automaton":
-        self.end.connect_trivial(self.start)
-        self.start.connect_trivial(self.end)
-        return self
+import reparser
 
 
 class Regex:
     def __init__(self, needle):
         self.needle = needle
-        self.state_machine = self._builder(needle)
+        self.state_machine = reparser.Parser(reparser.lexer(needle)).parse()
+        self.partial_state_machine = reparser.Parser(
+            reparser.lexer(f".*{needle}.*")
+        ).parse()
 
-    def match(self, haystack):
-        return any(
-            self.state_machine.match(haystack, i) for i in range(len(haystack) + 1)
-        )
+    def full_match(self, haystack) -> bool:
+        return self._match(haystack, self.state_machine)
 
-    @staticmethod
-    def _builder(needle: str) -> Node:
-        if not needle:
-            return Empty()
+    def match(self, haystack) -> bool:
+        return self._match(haystack, self.partial_state_machine)
 
-        if needle[0] == ".":
-            start = Wildcard()
-        else:
-            start = Literal(needle[0])
-        state: list[Node] = [start]
-        for c in needle[1:]:
-            if c == ".":
-                state.append(Wildcard())
-            else:
-                state.append(Literal(c))
-            state[-2].success = state[-1]
-        return start
+    def _match(self, haystack, state_machine) -> bool:
+        nodes = {state_machine.start}
+        for c in haystack:
+            nodes = self._get_all_trivial(nodes)
+            nodes = {nei for node in nodes if (nei := node.match(c))}
+
+        nodes = self._get_all_trivial(nodes)
+        return state_machine.end in nodes
+
+    def _get_all_trivial(self, nodes: set) -> set:
+        new_nodes = set(nodes)
+        while new_nodes:
+            new_new_nodes = set()
+            for node in new_nodes:
+                for nei in node.trivial_neigbours:
+                    if nei not in nodes:
+                        nodes.add(nei)
+                        new_new_nodes.add(nei)
+            new_nodes = new_new_nodes
+        return nodes
