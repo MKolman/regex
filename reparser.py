@@ -9,6 +9,8 @@ class TokenKind(IntEnum):
     Literal = auto()
     OpenParen = auto()
     CloseParen = auto()
+    OpenBrace = auto()
+    CloseBrace = auto()
     Dot = auto()
     Star = auto()
     Pipe = auto()
@@ -35,6 +37,10 @@ def lexer(code: str) -> list[Token]:
                 result.append(Token(TokenKind.OpenParen))
             case ")":
                 result.append(Token(TokenKind.CloseParen))
+            case "{":
+                result.append(Token(TokenKind.OpenBrace))
+            case "}":
+                result.append(Token(TokenKind.CloseBrace))
             case ".":
                 result.append(Token(TokenKind.Dot))
             case "*":
@@ -61,6 +67,8 @@ class Parser:
      - OneOrMore: A+ = AA*
      - Optional: A? = (A|)
      - Clojure A* = (|A|AA|AAA|...)
+     - Range A{3} = AAA
+     - Range A{1,3} = A(|A(|A))
      - Concatination AB
      - Choice (A|B)
     """
@@ -89,9 +97,30 @@ class Parser:
         return left
 
     def parse_concat(self) -> Automaton:
-        left = self.parse_clojure()
+        left = self.parse_range()
         while self.next() in [TokenKind.Literal, TokenKind.OpenParen, TokenKind.Dot]:
-            left = left.concat(self.parse_clojure())
+            left = left.concat(self.parse_range())
+        return left
+
+    def parse_range(self) -> Automaton:
+        left = self.parse_clojure()
+        if self.consume(TokenKind.OpenBrace):
+            min = 0
+            while (digit := self.consume_digit()) is not None:
+                min = min * 10 + int(digit)
+            max = min
+            if self.consume_literal(","):
+                max = 0
+                while (digit := self.consume_digit()) is not None:
+                    max = max * 10 + int(digit)
+
+            assert self.consume(TokenKind.CloseBrace)
+            assert min <= max
+            orig = left.clone()
+            for _ in range(min - 1):
+                left = left.concat(orig.clone())
+            for _ in range(max - min):
+                left = left.concat(Automaton.empty().choice(orig.clone()))
         return left
 
     def parse_clojure(self) -> Automaton:
@@ -132,6 +161,20 @@ class Parser:
 
     def next(self) -> TokenKind | None:
         return self.tokens[self.idx].kind if self.idx < len(self.tokens) else None
+
+    def consume_digit(self) -> int | None:
+        if self.next() == TokenKind.Literal and self.tokens[self.idx].value.isdigit():
+            self.idx += 1
+            return int(self.tokens[self.idx - 1].value)
+        return None
+
+    def consume_literal(self, lit: str | None = None) -> str | None:
+        if self.next() == TokenKind.Literal and (
+            lit is None or self.tokens[self.idx].value in lit
+        ):
+            self.idx += 1
+            return self.tokens[self.idx - 1].value
+        return None
 
     def consume(self, kind: TokenKind) -> bool:
         if self.next() == kind:

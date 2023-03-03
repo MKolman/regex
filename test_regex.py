@@ -140,6 +140,21 @@ class TestOneOrMore(unittest.TestCase):
 
 
 class TestRange(unittest.TestCase):
+    def test_simplest(self):
+        re = Regex("a{1}")
+        self.assertFalse(re.full_match(""))
+        self.assertTrue(re.full_match("a"))
+        self.assertFalse(re.full_match("aa"))
+        self.assertFalse(re.full_match("aaa"))
+
+    def test_simpler(self):
+        re = Regex("a{2}")
+        self.assertFalse(re.full_match(""))
+        self.assertFalse(re.full_match("a"))
+        self.assertTrue(re.full_match("aa"))
+        self.assertFalse(re.full_match("aaa"))
+        self.assertFalse(re.full_match("aaaa"))
+
     def test_simple(self):
         re = Regex("a{3}")
         self.assertFalse(re.full_match(""))
@@ -157,5 +172,43 @@ class TestRange(unittest.TestCase):
         self.assertTrue(re.full_match("aaaa"))
         self.assertFalse(re.full_match("aaaaaaa"))
 
+    def test_complex(self):
+        re = Regex("(ab|xy|p{4}|o+){1,3}")
+        self.assertFalse(re.full_match(""))
+        self.assertTrue(re.full_match("ab"))
+        self.assertTrue(re.full_match("aboooo"))
+        self.assertTrue(re.full_match("abppppxy"))
+        self.assertFalse(re.full_match("abpppxy"))
+        self.assertTrue(re.full_match("xy"))
+        self.assertTrue(re.full_match("xyxy"))
+        self.assertTrue(re.full_match("xypppp"))
+        self.assertTrue(re.full_match("xyppppooooooooooo"))
+        self.assertTrue(re.full_match("ooo"))
+        self.assertTrue(re.full_match("o"))
+        self.assertFalse(re.full_match("abababab"))
+        self.assertFalse(re.full_match("ababxyxyxy"))
+        self.assertFalse(re.full_match("aboooooaboooxyab"))
 
-"""TODO: [adsf]\w\ds^$[]"""
+    def test_zero_range(self):
+        re = Regex("a{0}")
+        self.assertTrue(re.full_match(""))
+        self.assertFalse(re.full_match("a"))
+        self.assertFalse(re.full_match("aa"))
+        self.assertFalse(re.full_match("aaa"))
+        re = Regex("a{0, 3}")
+        self.assertTrue(re.full_match(""))
+        self.assertTrue(re.full_match("a"))
+        self.assertTrue(re.full_match("aa"))
+        self.assertTrue(re.full_match("aaa"))
+        self.assertFalse(re.full_match("aaaa"))
+
+
+class TestOneOf(unittest.TestCase):
+    pass
+
+
+"""
+TODO: [adsf]\w\ds^$[]
+Variables save and insert
+Name suggestion: RegExt (extended regex XD)
+"""

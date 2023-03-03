@@ -17,13 +17,6 @@ class Node:
     wildcard_match: typing.Optional["Node"] = None
     _id: int = field(default_factory=get_id)
 
-    def clone(self) -> "Node":
-        return Node(
-            self.transitions.copy(),
-            self.trivial_neigbours.copy(),
-            self.wildcard_match,
-        )
-
     def match(self, char: str) -> typing.Optional["Node"]:
         return self.wildcard_match or self.transitions.get(char)
 
@@ -55,7 +48,38 @@ class Automaton:
         return result
 
     def clone(self) -> "Automaton":
-        return Automaton(self.start.clone(), self.end.clone())
+        clone_lib = dict()
+        self.start.rebuild(clone_lib)
+        new_start = clone_lib[self.start._id]
+        new_end = clone_lib[self.end._id]
+        self.start.reconnect(clone_lib, set())
+        return Automaton(new_start, new_end)
+
+    def clone(self) -> "Automaton":
+        new_start = Node()
+        old_to_new = {self.start: new_start}  # Copied equivalent of the old node
+        front = {self.start}
+        while front:
+            current_node = front.pop()
+            current_new = old_to_new[current_node]
+            for literal, node in current_node.transitions.items():
+                # Make transitions equivalent to old ones
+                if node not in old_to_new:
+                    front.add(node)
+                    old_to_new[node] = Node()
+                current_new.transitions[literal] = old_to_new[node]
+            for node in current_node.trivial_neigbours:
+                # Match trivial neighbours equivalent to old ones
+                if node not in old_to_new:
+                    front.add(node)
+                    old_to_new[node] = Node()
+                current_new.trivial_neigbours.append(old_to_new[node])
+            if current_node.wildcard_match:
+                if current_node.wildcard_match not in old_to_new:
+                    front.add(current_node.wildcard_match)
+                    old_to_new[current_node.wildcard_match] = Node()
+                current_new.wildcard_match = old_to_new[current_node.wildcard_match]
+        return Automaton(new_start, old_to_new[self.end])
 
     def concat(self, other: "Automaton") -> "Automaton":
         self.end.connect_trivial(other.start)
