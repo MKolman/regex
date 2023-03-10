@@ -47,6 +47,12 @@ class Automaton:
         result.end = result.start
         return result
 
+    @staticmethod
+    def literal(lit: str) -> "Automaton":
+        result = Automaton()
+        result.start.connect_literal(lit, result.end)
+        return result
+
     def clone(self) -> "Automaton":
         clone_lib = dict()
         self.start.rebuild(clone_lib)

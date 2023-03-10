@@ -195,7 +195,7 @@ class TestRange(unittest.TestCase):
         self.assertFalse(re.full_match("a"))
         self.assertFalse(re.full_match("aa"))
         self.assertFalse(re.full_match("aaa"))
-        re = Regex("a{0, 3}")
+        re = Regex("a{0,3}")
         self.assertTrue(re.full_match(""))
         self.assertTrue(re.full_match("a"))
         self.assertTrue(re.full_match("aa"))
@@ -204,7 +204,50 @@ class TestRange(unittest.TestCase):
 
 
 class TestOneOf(unittest.TestCase):
-    pass
+    def test_simplest(self):
+        re = Regex("[a]")
+        self.assertTrue(re.full_match("a"))
+        self.assertFalse(re.full_match("b"))
+        self.assertFalse(re.full_match("c"))
+
+    def test_simpler(self):
+        re = Regex("[abc]")
+        self.assertTrue(re.full_match("a"))
+        self.assertTrue(re.full_match("b"))
+        self.assertTrue(re.full_match("c"))
+        self.assertFalse(re.full_match("d"))
+
+    def test_star(self):
+        re = Regex("[a*bc]")
+        self.assertTrue(re.full_match("a"))
+        self.assertTrue(re.full_match("*"))
+        self.assertTrue(re.full_match("b"))
+
+    def test_complex(self):
+        re = Regex("[a-f]")
+        self.assertTrue(re.full_match("a"))
+        self.assertTrue(re.full_match("b"))
+        self.assertTrue(re.full_match("f"))
+        self.assertFalse(re.full_match("g"))
+
+    def test_empty(self):
+        self.assertRaises(AssertionError, lambda: Regex("[]"))
+
+    def test_advanced(self):
+        re = Regex("[A-Fc-z0-5]{0,3}")
+        self.assertTrue(re.full_match(""))
+        self.assertTrue(re.full_match("ABC"))
+        self.assertTrue(re.full_match("ABc"))
+        self.assertTrue(re.full_match("3eC"))
+        self.assertFalse(re.full_match("F6d"))
+
+    def test_not(self):
+        re = Regex("[^X]")
+        self.assertTrue(re.full_match("a"))
+        self.assertTrue(re.full_match("p"))
+        self.assertFalse(re.full_match("X"))
+        self.assertFalse(re.full_match("aa"))
+        self.assertFalse(re.full_match(""))
 
 
 """

@@ -11,6 +11,8 @@ class TokenKind(IntEnum):
     CloseParen = auto()
     OpenBrace = auto()
     CloseBrace = auto()
+    OpenBracket = auto()
+    CloseBracket = auto()
     Dot = auto()
     Star = auto()
     Pipe = auto()
@@ -41,6 +43,10 @@ def lexer(code: str) -> list[Token]:
                 result.append(Token(TokenKind.OpenBrace))
             case "}":
                 result.append(Token(TokenKind.CloseBrace))
+            case "[":
+                result.append(Token(TokenKind.OpenBracket))
+            case "]":
+                result.append(Token(TokenKind.CloseBracket))
             case ".":
                 result.append(Token(TokenKind.Dot))
             case "*":
@@ -51,9 +57,10 @@ def lexer(code: str) -> list[Token]:
                 i += 1
                 if i == len(code):
                     raise ValueError("Regex cannot end with a single backslash")
-                result.append(Token(TokenKind.Literal, code[i]))
-            case c:
-                result.append(Token(TokenKind.Literal, c))
+                result.append(Token(TokenKind.Literal))
+            case _:
+                result.append(Token(TokenKind.Literal))
+        result[-1].value = code[i]
         i += 1
     return result
 
@@ -67,6 +74,7 @@ class Parser:
      - OneOrMore: A+ = AA*
      - Optional: A? = (A|)
      - Clojure A* = (|A|AA|AAA|...)
+     - Bracket [abc] = (a|b|c)
      - Range A{3} = AAA
      - Range A{1,3} = A(|A(|A))
      - Concatination AB
@@ -98,12 +106,17 @@ class Parser:
 
     def parse_concat(self) -> Automaton:
         left = self.parse_range()
-        while self.next() in [TokenKind.Literal, TokenKind.OpenParen, TokenKind.Dot]:
+        while self.next() in [
+            TokenKind.Literal,
+            TokenKind.OpenParen,
+            TokenKind.Dot,
+            TokenKind.OpenBracket,
+        ]:
             left = left.concat(self.parse_range())
         return left
 
     def parse_range(self) -> Automaton:
-        left = self.parse_clojure()
+        left = self.parse_bracket()
         if self.consume(TokenKind.OpenBrace):
             min = 0
             while (digit := self.consume_digit()) is not None:
@@ -116,12 +129,32 @@ class Parser:
 
             assert self.consume(TokenKind.CloseBrace)
             assert min <= max
-            orig = left.clone()
-            for _ in range(min - 1):
+            orig = left
+            left = Automaton.empty()
+            for _ in range(min):
                 left = left.concat(orig.clone())
             for _ in range(max - min):
                 left = left.concat(Automaton.empty().choice(orig.clone()))
         return left
+
+    def parse_bracket(self) -> Automaton:
+        if self.consume(TokenKind.OpenBracket):
+            lits = []
+            while not self.consume(TokenKind.CloseBracket):
+                lits.append(self.tokens[self.idx].value)
+                self.idx += 1
+            assert len(lits) > 0
+            result = Automaton()
+            for idx, lit in enumerate(lits):
+                if lit == "-" and idx > 0 and idx < len(lits) - 1:
+                    start = lits[idx - 1]
+                    end = lits[idx + 1]
+                    for i in range(ord(start), ord(end) + 1):
+                        result.start.connect_literal(chr(i), result.end)
+                else:
+                    result.start.connect_literal(lit, result.end)
+            return result
+        return self.parse_clojure()
 
     def parse_clojure(self) -> Automaton:
         left = self.parse_optional()
@@ -151,13 +184,14 @@ class Parser:
     def parse_literal(self) -> Automaton:
         if self.next() not in [TokenKind.Literal, TokenKind.Dot]:
             return Automaton.empty()
-        result = Automaton()
         if self.consume(TokenKind.Dot):
+            result = Automaton()
             result.start.connect_dot(result.end)
-        else:
-            result.start.connect_literal(self.tokens[self.idx].value, result.end)
-            self.idx += 1
-        return result
+            return result
+        if lit := self.consume_literal():
+            result = Automaton.literal(lit)
+            return result
+        assert "Invalid literal?"
 
     def next(self) -> TokenKind | None:
         return self.tokens[self.idx].kind if self.idx < len(self.tokens) else None
