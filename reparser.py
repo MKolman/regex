@@ -1,8 +1,9 @@
 import typing
+import string
 from dataclasses import dataclass
 from enum import IntEnum, auto
 
-from automaton import Automaton
+from automaton import Automaton, Node
 
 
 class TokenKind(IntEnum):
@@ -18,6 +19,9 @@ class TokenKind(IntEnum):
     Pipe = auto()
     Questionmark = auto()
     Plus = auto()
+    Caret = auto()
+    Digit = auto()
+    Word = auto()
 
 
 @dataclass
@@ -53,11 +57,19 @@ def lexer(code: str) -> list[Token]:
                 result.append(Token(TokenKind.Star))
             case "|":
                 result.append(Token(TokenKind.Pipe))
+            case "^":
+                result.append(Token(TokenKind.Caret))
             case "\\":
                 i += 1
                 if i == len(code):
                     raise ValueError("Regex cannot end with a single backslash")
-                result.append(Token(TokenKind.Literal))
+                match code[i]:
+                    case "d":
+                        result.append(Token(TokenKind.Digit))
+                    case "w":
+                        result.append(Token(TokenKind.Word))
+                    case _:
+                        result.append(Token(TokenKind.Literal))
             case _:
                 result.append(Token(TokenKind.Literal))
         result[-1].value = code[i]
@@ -71,6 +83,8 @@ class Parser:
     Precedence:
      - Literal
      - Grouping
+     - Digit: \d = [0123456789]
+     - Word: \w = [a-zA-Z0-9_]
      - OneOrMore: A+ = AA*
      - Optional: A? = (A|)
      - Clojure A* = (|A|AA|AAA|...)
@@ -111,6 +125,8 @@ class Parser:
             TokenKind.OpenParen,
             TokenKind.Dot,
             TokenKind.OpenBracket,
+            TokenKind.Digit,
+            TokenKind.Word,
         ]:
             left = left.concat(self.parse_range())
         return left
@@ -139,6 +155,7 @@ class Parser:
 
     def parse_bracket(self) -> Automaton:
         if self.consume(TokenKind.OpenBracket):
+            is_negative = self.consume(TokenKind.Caret)
             lits = []
             while not self.consume(TokenKind.CloseBracket):
                 lits.append(self.tokens[self.idx].value)
@@ -153,6 +170,9 @@ class Parser:
                         result.start.connect_literal(chr(i), result.end)
                 else:
                     result.start.connect_literal(lit, result.end)
+            if is_negative:
+                result.end = Node()
+                result.start.connect_dot(result.end)
             return result
         return self.parse_clojure()
 
@@ -169,10 +189,26 @@ class Parser:
         return left
 
     def parse_one_or_more(self) -> Automaton:
-        left = self.parse_group()
+        left = self.parse_word()
         if self.consume(TokenKind.Plus):
             left = left.concat(left.clone().clojure())
         return left
+
+    def parse_word(self) -> Automaton:
+        if self.consume(TokenKind.Word):
+            result = Automaton.empty()
+            for c in string.digits + string.ascii_letters + "_":
+                result.start.connect_literal(c, result.end)
+            return result
+        return self.parse_digit()
+
+    def parse_digit(self) -> Automaton:
+        if self.consume(TokenKind.Digit):
+            result = Automaton.empty()
+            for c in string.digits:
+                result.start.connect_literal(c, result.end)
+            return result
+        return self.parse_group()
 
     def parse_group(self) -> Automaton:
         if self.consume(TokenKind.OpenParen):
@@ -192,6 +228,7 @@ class Parser:
             result = Automaton.literal(lit)
             return result
         assert "Invalid literal?"
+        return Automaton.empty()
 
     def next(self) -> TokenKind | None:
         return self.tokens[self.idx].kind if self.idx < len(self.tokens) else None

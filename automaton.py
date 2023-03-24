@@ -18,7 +18,7 @@ class Node:
     _id: int = field(default_factory=get_id)
 
     def match(self, char: str) -> typing.Optional["Node"]:
-        return self.wildcard_match or self.transitions.get(char)
+        return self.transitions.get(char) or self.wildcard_match
 
     def connect_trivial(self, n: "Node"):
         self.trivial_neigbours.append(n)

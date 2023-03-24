@@ -249,9 +249,32 @@ class TestOneOf(unittest.TestCase):
         self.assertFalse(re.full_match("aa"))
         self.assertFalse(re.full_match(""))
 
+    def test_not_complex(self):
+        re = Regex("[^ABC]")
+        self.assertTrue(re.full_match("D"))
+        self.assertTrue(re.full_match("E"))
+        self.assertFalse(re.full_match("A"))
+        self.assertFalse(re.full_match("B"))
+        self.assertFalse(re.full_match("CC"))
+
+    def test_digit(self):
+        re = Regex("a\db")
+        self.assertTrue(re.full_match("a1b"))
+        self.assertTrue(re.full_match("a2b"))
+        self.assertFalse(re.full_match("ab3"))
+
+    def test_word(self):
+        re = Regex("a\wb")
+        self.assertTrue(re.full_match("aab"))
+        self.assertTrue(re.full_match("a_b"))
+        self.assertTrue(re.full_match("aGb"))
+        self.assertTrue(re.full_match("a0b"))
+        self.assertFalse(re.full_match("a.b"))
+        self.assertFalse(re.full_match("a?b"))
+
 
 """
-TODO: [adsf]\w\ds^$[]
+TODO: [adsf]\\dws^$[]
 Variables save and insert
 Name suggestion: RegExt (extended regex XD)
 """
