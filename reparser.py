@@ -20,8 +20,10 @@ class TokenKind(IntEnum):
     Questionmark = auto()
     Plus = auto()
     Caret = auto()
+    Dollar = auto()
     Digit = auto()
     Word = auto()
+    Whitespace = auto()
 
 
 @dataclass
@@ -59,6 +61,8 @@ def lexer(code: str) -> list[Token]:
                 result.append(Token(TokenKind.Pipe))
             case "^":
                 result.append(Token(TokenKind.Caret))
+            case "$":
+                result.append(Token(TokenKind.Dollar))
             case "\\":
                 i += 1
                 if i == len(code):
@@ -68,6 +72,8 @@ def lexer(code: str) -> list[Token]:
                         result.append(Token(TokenKind.Digit))
                     case "w":
                         result.append(Token(TokenKind.Word))
+                    case "s":
+                        result.append(Token(TokenKind.Whitespace))
                     case _:
                         result.append(Token(TokenKind.Literal))
             case _:
@@ -85,6 +91,7 @@ class Parser:
      - Grouping
      - Digit: \d = [0123456789]
      - Word: \w = [a-zA-Z0-9_]
+     - Whitespace: \s = [ \t\n\r\f]
      - OneOrMore: A+ = AA*
      - Optional: A? = (A|)
      - Clojure A* = (|A|AA|AAA|...)
@@ -127,6 +134,7 @@ class Parser:
             TokenKind.OpenBracket,
             TokenKind.Digit,
             TokenKind.Word,
+            TokenKind.Whitespace,
         ]:
             left = left.concat(self.parse_range())
         return left
@@ -189,14 +197,22 @@ class Parser:
         return left
 
     def parse_one_or_more(self) -> Automaton:
-        left = self.parse_word()
+        left = self.parse_whitespace()
         if self.consume(TokenKind.Plus):
             left = left.concat(left.clone().clojure())
         return left
 
+    def parse_whitespace(self) -> Automaton:
+        if self.consume(TokenKind.Whitespace):
+            result = Automaton.none()
+            for c in " \t\r\n\f":
+                result.start.connect_literal(c, result.end)
+            return result
+        return self.parse_word()
+
     def parse_word(self) -> Automaton:
         if self.consume(TokenKind.Word):
-            result = Automaton.empty()
+            result = Automaton.none()
             for c in string.digits + string.ascii_letters + "_":
                 result.start.connect_literal(c, result.end)
             return result
@@ -204,7 +220,7 @@ class Parser:
 
     def parse_digit(self) -> Automaton:
         if self.consume(TokenKind.Digit):
-            result = Automaton.empty()
+            result = Automaton.none()
             for c in string.digits:
                 result.start.connect_literal(c, result.end)
             return result

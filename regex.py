@@ -4,10 +4,23 @@ import reparser
 class Regex:
     def __init__(self, needle):
         self.needle = needle
-        self.state_machine = reparser.Parser(reparser.lexer(needle)).parse()
-        self.partial_state_machine = reparser.Parser(
-            reparser.lexer(f".*{needle}.*")
-        ).parse()
+        line_start = False
+        line_end = False
+        tokens = reparser.lexer(needle)
+        if tokens and tokens[0].kind == reparser.TokenKind.Caret:
+            tokens = tokens[1:]
+            line_start = True
+        if tokens and tokens[-1].kind == reparser.TokenKind.Dollar:
+            tokens = tokens[:-1]
+            line_end = True
+        self.state_machine = reparser.Parser(tokens).parse()
+
+        # Partial match
+        if not line_start:
+            tokens = reparser.lexer(".*") + tokens
+        if not line_end:
+            tokens += reparser.lexer(".*")
+        self.partial_state_machine = reparser.Parser(tokens).parse()
 
     def full_match(self, haystack) -> bool:
         return self._match(haystack, self.state_machine)

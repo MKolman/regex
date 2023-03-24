@@ -42,6 +42,10 @@ class Automaton:
     end: Node = field(default_factory=Node)
 
     @staticmethod
+    def none() -> "Automaton":
+        return Automaton()
+
+    @staticmethod
     def empty() -> "Automaton":
         result = Automaton()
         result.end = result.start

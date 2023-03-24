@@ -271,10 +271,39 @@ class TestOneOf(unittest.TestCase):
         self.assertTrue(re.full_match("a0b"))
         self.assertFalse(re.full_match("a.b"))
         self.assertFalse(re.full_match("a?b"))
+        self.assertFalse(re.full_match("ab"))
+
+    def test_space(self):
+        re = Regex(r"a\s\sb")
+        self.assertTrue(re.full_match("a  b"))
+        self.assertTrue(re.full_match("a\t b"))
+        self.assertTrue(re.full_match("a\r\nb"))
+        self.assertTrue(re.full_match("a\n\nb"))
+        self.assertTrue(re.full_match("a\f b"))
+        self.assertFalse(re.full_match("a b"))
+        self.assertFalse(re.full_match("a bb"))
+
+
+class TestBoundary(unittest.TestCase):
+    def test_start(self):
+        re = Regex("^a")
+        self.assertTrue(re.match("a"))
+        self.assertTrue(re.match("aa"))
+        self.assertFalse(re.match("ba"))
+        self.assertFalse(re.match(""))
+
+    def test_end(self):
+        re = Regex("a$")
+        self.assertTrue(re.match("a"))
+        self.assertTrue(re.match("ba"))
+        self.assertFalse(re.match("ab"))
+        self.assertFalse(re.match(""))
 
 
 """
-TODO: [adsf]\\dws^$[]
+b(?![^@]+@[^@]+).
+([-!#-'*+/-9=?A-Z^-~]+(\.[-!#-'*+/-9=?A-Z^-~]+)*|"([]!#-[^-~ \t]|(\\[\t -~]))+")@([0-9A-Za-z]([0-9A-Za-z-]{0,61}[0-9A-Za-z])?(\.[0-9A-Za-z]([0-9A-Za-z-]{0,61}[0-9A-Za-z])?)*|\[((25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])(\.(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])){3}|IPv6:((((0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}):){6}|::((0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}):){5}|[0-9A-Fa-f]{0,4}::((0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}):){4}|(((0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}):)?(0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}))?::((0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}):){3}|(((0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}):){0,2}(0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}))?::((0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}):){2}|(((0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}):){0,3}(0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}))?::(0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}):|(((0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}):){0,4}(0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}))?::)((0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}):(0|[1-9A-Fa-f][0-9A-Fa-f]{0,3})|(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])(\.(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])){3})|(((0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}):){0,5}(0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}))?::(0|[1-9A-Fa-f][0-9A-Fa-f]{0,3})|(((0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}):){0,6}(0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}))?::)|(?!IPv6:)[0-9A-Za-z-]*[0-9A-Za-z]:[!-Z^-~]+)])
+
 Variables save and insert
 Name suggestion: RegExt (extended regex XD)
 """
