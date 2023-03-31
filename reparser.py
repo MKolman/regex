@@ -1,6 +1,6 @@
 import typing
 import string
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import IntEnum, auto
 
 from automaton import Automaton, Node
@@ -96,6 +96,7 @@ class Parser:
      - Optional: A? = (A|)
      - Clojure A* = (|A|AA|AAA|...)
      - Bracket [abc] = (a|b|c)
+     - Variable {a} = insert variable a
      - Range A{3} = AAA
      - Range A{1,3} = A(|A(|A))
      - Concatination AB
@@ -104,6 +105,7 @@ class Parser:
 
     tokens: list[Token]
     idx: int = 0
+    vars: dict[str, Automaton] = field(default_factory=dict)
 
     def parse(self) -> Automaton:
         if not self.tokens:
@@ -132,6 +134,7 @@ class Parser:
             TokenKind.OpenParen,
             TokenKind.Dot,
             TokenKind.OpenBracket,
+            TokenKind.OpenBrace,
             TokenKind.Digit,
             TokenKind.Word,
             TokenKind.Whitespace,
@@ -140,8 +143,12 @@ class Parser:
         return left
 
     def parse_range(self) -> Automaton:
-        left = self.parse_bracket()
+        left = self.parse_variable()
         if self.consume(TokenKind.OpenBrace):
+            # Don't parse variables here
+            if self.next() != TokenKind.Literal or not self.next_value().isdigit():
+                self.idx -= 1
+                return left
             min = 0
             while (digit := self.consume_digit()) is not None:
                 min = min * 10 + int(digit)
@@ -160,6 +167,29 @@ class Parser:
             for _ in range(max - min):
                 left = left.concat(Automaton.empty().choice(orig.clone()))
         return left
+
+    def parse_variable(self) -> Automaton:
+        if self.consume(TokenKind.OpenBrace):
+            assert (
+                self.next() == TokenKind.Literal
+            ), "Variable names must start with a letter"
+            assert (
+                self.next_value().isalpha()
+            ), "Variable names must start with a letter"
+
+            name = ""
+            while (c := self.consume_literal()) and c.isalnum():
+                name += c
+
+            assert self.consume(
+                TokenKind.CloseBrace
+            ), f"Variables cannot contain {self.next_value()}"
+
+            assert name in self.vars, f"Variable {name} is not defined"
+
+            return self.vars[name].clone()
+
+        return self.parse_bracket()
 
     def parse_bracket(self) -> Automaton:
         if self.consume(TokenKind.OpenBracket):
@@ -248,6 +278,9 @@ class Parser:
 
     def next(self) -> TokenKind | None:
         return self.tokens[self.idx].kind if self.idx < len(self.tokens) else None
+
+    def next_value(self) -> str | None:
+        return self.tokens[self.idx].value if self.idx < len(self.tokens) else None
 
     def consume_digit(self) -> int | None:
         if self.next() == TokenKind.Literal and self.tokens[self.idx].value.isdigit():

@@ -2,7 +2,7 @@ import reparser
 
 
 class Regex:
-    def __init__(self, needle):
+    def __init__(self, needle, **vars: "Regex"):
         self.needle = needle
         line_start = False
         line_end = False
@@ -13,14 +13,18 @@ class Regex:
         if tokens and tokens[-1].kind == reparser.TokenKind.Dollar:
             tokens = tokens[:-1]
             line_end = True
-        self.state_machine = reparser.Parser(tokens).parse()
+
+        automaton_vars = {k: v.state_machine for k, v in vars.items()}
+        self.state_machine = reparser.Parser(tokens, vars=automaton_vars).parse()
 
         # Partial match
         if not line_start:
             tokens = reparser.lexer(".*") + tokens
         if not line_end:
             tokens += reparser.lexer(".*")
-        self.partial_state_machine = reparser.Parser(tokens).parse()
+        self.partial_state_machine = reparser.Parser(
+            tokens, vars=automaton_vars
+        ).parse()
 
     def full_match(self, haystack) -> bool:
         return self._match(haystack, self.state_machine)
