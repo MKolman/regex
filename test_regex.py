@@ -138,6 +138,13 @@ class TestOneOrMore(unittest.TestCase):
         self.assertTrue(re.full_match("a"))
         self.assertTrue(re.full_match("aaaaaa"))
 
+    def test_pattern(self):
+        re = Regex("[abc]+")
+        self.assertFalse(re.full_match(""))
+        self.assertTrue(re.full_match("a"))
+        self.assertTrue(re.full_match("aaaaaa"))
+        self.assertTrue(re.full_match("abbccbcbabc"))
+
 
 class TestRange(unittest.TestCase):
     def test_simplest(self):
@@ -326,14 +333,47 @@ class TestVariables(unittest.TestCase):
         self.assertRaises(AssertionError, lambda: Regex("{3}", a=a))
         self.assertRaises(AssertionError, lambda: Regex("a{3a}", a=a))
 
+    def test_plus(self):
+        chars = Regex("[abc]")
+        a = Regex("{chars}+", chars=chars)
+        self.assertTrue(a.full_match("aaaa"))
+
 
 class TestComplex(unittest.TestCase):
     def test_email(self):
         """https://emailregex.com/"""
-        email = Regex(
-            """([-!#-'*+/-9=?A-Z^-~]+(\.[-!#-'*+/-9=?A-Z^-~]+)*|"([]!#-[^-~ \t]|(\\[\t -~]))+")@([0-9A-Za-z]([0-9A-Za-z-]{0,61}[0-9A-Za-z])?(\.[0-9A-Za-z]([0-9A-Za-z-]{0,61}[0-9A-Za-z])?)*|\[((25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])(\.(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])){3}|IPv6:((((0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}):){6}|::((0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}):){5}|[0-9A-Fa-f]{0,4}::((0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}):){4}|(((0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}):)?(0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}))?::((0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}):){3}|(((0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}):){0,2}(0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}))?::((0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}):){2}|(((0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}):){0,3}(0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}))?::(0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}):|(((0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}):){0,4}(0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}))?::)((0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}):(0|[1-9A-Fa-f][0-9A-Fa-f]{0,3})|(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])(\.(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])){3})|(((0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}):){0,5}(0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}))?::(0|[1-9A-Fa-f][0-9A-Fa-f]{0,3})|(((0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}):){0,6}(0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}))?::)|(?!IPv6:)[0-9A-Za-z-]*[0-9A-Za-z]:[!-Z^-~]+)])"""
+        chars = Regex(r"[-!#-'*+/-9=?A-Z^-~]")
+        username1 = Regex(r"{chars}+(\.{chars}+)*", chars=chars)
+        username2 = Regex(r"""\"([\]!#-[^-~ \t]|(\\[\t -~]))+\"""")
+        username = Regex(
+            "({username1}|{username2})", username1=username1, username2=username2
         )
-        self.assertTrue(email.full_match("a@a.com"))
+        domain_word = Regex(r"""[0-9A-Za-z]([0-9A-Za-z\-]{0,61}[0-9A-Za-z])?""")
+        domain1 = Regex(
+            r"""{domain_word}(\.{domain_word})*""",
+            domain_word=domain_word,
+        )
+        bit8 = Regex("(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])")
+        ipv4 = Regex("{bit8}(\.{bit8}){3}")
+        bit16 = Regex()
+        ipv6 = Regex(
+            "((((0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}):){6}|::((0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}):){5}|[0-9A-Fa-f]{0,4}::((0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}):){4}|(((0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}):)?(0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}))?::((0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}):){3}|(((0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}):){0,2}(0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}))?::((0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}):){2}|(((0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}):){0,3}(0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}))?::(0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}):|(((0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}):){0,4}(0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}))?::)((0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}):(0|[1-9A-Fa-f][0-9A-Fa-f]{0,3})|(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])(\.(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])){3})|(((0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}):){0,5}(0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}))?::(0|[1-9A-Fa-f][0-9A-Fa-f]{0,3})|(((0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}):){0,6}(0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}))?::)"
+        )
+        ip_domain = Regex(
+            r"\[({ipv4}|IPv6:{ipv6}|[0-9A-Za-z-]*[0-9A-Za-z]:[!-Z^-~]+)\]",
+            # TODO: r"\[({ipv4}|IPv6:{ipv6}|(?!IPv6:)[0-9A-Za-z-]*[0-9A-Za-z]:[!-Z^-~]+)\]",
+            #                               _________
+            ipv4=ipv4,
+            ipv6=ipv6,
+        )
+        domain = Regex("({domain1}|{ip_domain})", domain1=domain1, ip_domain=ip_domain)
+        email = Regex("{username}@{domain}", username=username, domain=domain)
+        self.assertTrue(email.full_match("a@a"))
+        self.assertTrue(email.full_match("itsupport@bitstamp.net"))
+        self.assertTrue(email.full_match("!@localhost"))
+        self.assertTrue(email.full_match('" !#"@[IPv6:2001:db8::1]'))
+        self.assertFalse(email.full_match('" !#"@IPv6:2001:db8::1'))
+        self.assertTrue(email.full_match('" !#"@[ksdjhfg:!--Z~]'))
 
 
 """

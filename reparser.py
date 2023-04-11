@@ -88,17 +88,17 @@ class Parser:
     """
     Precedence:
      - Literal
-     - Grouping
+     - Grouping ()
      - Digit: \d = [0123456789]
      - Word: \w = [a-zA-Z0-9_]
      - Whitespace: \s = [ \t\n\r\f]
-     - OneOrMore: A+ = AA*
-     - Optional: A? = (A|)
-     - Clojure A* = (|A|AA|AAA|...)
      - Bracket [abc] = (a|b|c)
      - Variable {a} = insert variable a
      - Range A{3} = AAA
      - Range A{1,3} = A(|A(|A))
+     - OneOrMore: A+ = AA*
+     - Optional: A? = (A|)
+     - Clojure A* = (|A|AA|AAA|...)
      - Concatination AB
      - Choice (A|B)
     """
@@ -128,7 +128,7 @@ class Parser:
         return left
 
     def parse_concat(self) -> Automaton:
-        left = self.parse_range()
+        left = self.parse_clojure()
         while self.next() in [
             TokenKind.Literal,
             TokenKind.OpenParen,
@@ -139,7 +139,25 @@ class Parser:
             TokenKind.Word,
             TokenKind.Whitespace,
         ]:
-            left = left.concat(self.parse_range())
+            left = left.concat(self.parse_clojure())
+        return left
+
+    def parse_clojure(self) -> Automaton:
+        left = self.parse_optional()
+        if self.consume(TokenKind.Star):
+            left = left.clojure()
+        return left
+
+    def parse_optional(self) -> Automaton:
+        left = self.parse_one_or_more()
+        if self.consume(TokenKind.Questionmark):
+            left = left.choice(Automaton.empty())
+        return left
+
+    def parse_one_or_more(self) -> Automaton:
+        left = self.parse_range()
+        if self.consume(TokenKind.Plus):
+            left = left.concat(left.clone().clojure())
         return left
 
     def parse_range(self) -> Automaton:
@@ -178,7 +196,11 @@ class Parser:
             ), "Variable names must start with a letter"
 
             name = ""
-            while (c := self.consume_literal()) and c.isalnum():
+
+            while c := self.consume_literal():
+                assert (
+                    c.isalnum() or c == "_"
+                ), f"Variable names can only contain letters, numbers and underscores and not '{c}'."
                 name += c
 
             assert self.consume(
@@ -212,25 +234,7 @@ class Parser:
                 result.end = Node()
                 result.start.connect_dot(result.end)
             return result
-        return self.parse_clojure()
-
-    def parse_clojure(self) -> Automaton:
-        left = self.parse_optional()
-        if self.consume(TokenKind.Star):
-            left = left.clojure()
-        return left
-
-    def parse_optional(self) -> Automaton:
-        left = self.parse_one_or_more()
-        if self.consume(TokenKind.Questionmark):
-            left = left.choice(Automaton.empty())
-        return left
-
-    def parse_one_or_more(self) -> Automaton:
-        left = self.parse_whitespace()
-        if self.consume(TokenKind.Plus):
-            left = left.concat(left.clone().clojure())
-        return left
+        return self.parse_whitespace()
 
     def parse_whitespace(self) -> Automaton:
         if self.consume(TokenKind.Whitespace):
