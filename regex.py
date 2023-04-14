@@ -37,7 +37,9 @@ class Regex:
         for c in haystack:
             nodes = self._get_all_trivial(nodes)
             nodes = {nei for node in nodes if (nei := node.match(c))}
-
+            if not nodes:
+                # Will this be relevant, when we optimize the automaton/graph?
+                return False
         nodes = self._get_all_trivial(nodes)
         return state_machine.end in nodes
 

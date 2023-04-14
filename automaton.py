@@ -105,6 +105,13 @@ class Automaton:
         return Automaton(start, end)
 
     def clojure(self) -> "Automaton":
+        # self.end.transitions.update(self.start.transitions)
+        # self.end.trivial_neigbours += self.start.trivial_neigbours
+        # self.end.wildcard_match = self.end.wildcard_match or self.start.wildcard_match
+        # assert (
+        #     not self.end.wildcard_match or not self.start.wildcard_match
+        # ), "Too many wild"
+        # self.start = self.end
         self.end.connect_trivial(self.start)
         self.start.connect_trivial(self.end)
         return self
