@@ -81,6 +81,13 @@ class TestClojure(unittest.TestCase):
         self.assertFalse(re.full_match("aabab"))
         self.assertFalse(re.full_match("aabb"))
 
+    def test_with_wildcard(self):
+        re = Regex("a*.")
+        self.assertTrue(re.full_match("a"))
+        self.assertTrue(re.full_match("aaa"))
+        self.assertTrue(re.full_match("aab"))
+        self.assertFalse(re.full_match("bb"))
+
 
 class TestOr(unittest.TestCase):
     def test_simpler(self):

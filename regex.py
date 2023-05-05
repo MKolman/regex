@@ -36,21 +36,27 @@ class Regex:
         nodes = {state_machine.start}
         for c in haystack:
             nodes = self._get_all_trivial(nodes)
-            nodes = {nei for node in nodes if (nei := node.match(c))}
+            nodes = self._get_all_matches(nodes, c)
             if not nodes:
                 # Will this be relevant, when we optimize the automaton/graph?
                 return False
         nodes = self._get_all_trivial(nodes)
         return state_machine.end in nodes
 
-    def _get_all_trivial(self, nodes: set) -> set:
+    @staticmethod
+    def _get_all_matches(nodes: set, c: str) -> set:
+            new_nodes = set()
+            for node in nodes:
+                new_nodes.update(node.match(c))
+            return new_nodes
+
+    @staticmethod
+    def _get_all_trivial(nodes: set) -> set:
         new_nodes = set(nodes)
         while new_nodes:
             new_new_nodes = set()
             for node in new_nodes:
-                for nei in node.trivial_neigbours:
-                    if nei not in nodes:
-                        nodes.add(nei)
-                        new_new_nodes.add(nei)
+                new_new_nodes.update(node.trivial_neigbours - nodes)
+                nodes.update(node.trivial_neigbours)
             new_nodes = new_new_nodes
         return nodes

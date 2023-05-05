@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from collections import defaultdict
 import typing
 
 last_id = 0
@@ -12,22 +13,27 @@ def get_id() -> int:
 
 @dataclass
 class Node:
-    transitions: dict[str, "Node"] = field(default_factory=dict)
-    trivial_neigbours: list["Node"] = field(default_factory=list)
-    wildcard_match: typing.Optional["Node"] = None
+    transitions: defaultdict[str, set["Node"]] = field(default_factory=lambda: defaultdict(set))
+    trivial_neigbours: set["Node"] = field(default_factory=set)
+    wildcard_match: set["Node"] = field(default_factory=set)
+    # negative_match: list[tuple[set[str], "Node"]] = field(default_factory=list)
     _id: int = field(default_factory=get_id)
 
-    def match(self, char: str) -> typing.Optional["Node"]:
-        return self.transitions.get(char) or self.wildcard_match
+    def match(self, char: str) -> set["Node"]:
+        # result = self.transitions[char]
+        # for dont_match, node in self.negative_match:
+        #     if char not in dont_match:
+        #         result.add(node)
+        return self.transitions[char] | (self.wildcard_match if "!"+char not in transitions)
 
     def connect_trivial(self, n: "Node"):
-        self.trivial_neigbours.append(n)
+        self.trivial_neigbours.add(n)
 
     def connect_literal(self, char: str, n: "Node"):
-        self.transitions[char] = n
+        self.transitions[char].add(n)
 
     def connect_dot(self, n: "Node"):
-        self.wildcard_match = n
+        self.wildcard_match.add(n)
 
     def __hash__(self) -> int:
         return self._id
@@ -72,23 +78,24 @@ class Automaton:
         while front:
             current_node = front.pop()
             current_new = old_to_new[current_node]
-            for literal, node in current_node.transitions.items():
+            for literal, nodes in current_node.transitions.items():
                 # Make transitions equivalent to old ones
-                if node not in old_to_new:
-                    front.add(node)
-                    old_to_new[node] = Node()
-                current_new.transitions[literal] = old_to_new[node]
+                for node in nodes:
+                    if node not in old_to_new:
+                        front.add(node)
+                        old_to_new[node] = Node()
+                    current_new.transitions[literal].add(old_to_new[node])
             for node in current_node.trivial_neigbours:
                 # Match trivial neighbours equivalent to old ones
                 if node not in old_to_new:
                     front.add(node)
                     old_to_new[node] = Node()
-                current_new.trivial_neigbours.append(old_to_new[node])
-            if current_node.wildcard_match:
-                if current_node.wildcard_match not in old_to_new:
-                    front.add(current_node.wildcard_match)
-                    old_to_new[current_node.wildcard_match] = Node()
-                current_new.wildcard_match = old_to_new[current_node.wildcard_match]
+                current_new.trivial_neigbours.add(old_to_new[node])
+            for node in current_node.wildcard_match:
+                if node not in old_to_new:
+                    front.add(node)
+                    old_to_new[node] = Node()
+                current_new.wildcard_match = old_to_new[node]
         return Automaton(new_start, old_to_new[self.end])
 
     def concat(self, other: "Automaton") -> "Automaton":
