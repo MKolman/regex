@@ -3,7 +3,7 @@ import string
 from dataclasses import dataclass, field
 from enum import IntEnum, auto
 
-from automaton import Automaton, Node
+from automaton import Automaton
 
 
 class TokenKind(IntEnum):
@@ -222,17 +222,20 @@ class Parser:
                 self.idx += 1
             assert len(lits) > 0
             result = Automaton()
+            all_lits = set()
             for idx, lit in enumerate(lits):
                 if lit == "-" and idx > 0 and idx < len(lits) - 1:
                     start = lits[idx - 1]
                     end = lits[idx + 1]
                     for i in range(ord(start), ord(end) + 1):
-                        result.start.connect_literal(chr(i), result.end)
+                        all_lits.add(chr(i))
                 else:
-                    result.start.connect_literal(lit, result.end)
+                    all_lits.add(lit)
             if is_negative:
-                result.end = Node()
-                result.start.connect_dot(result.end)
+                result.start.connect_neg(all_lits, result.end)
+            else:
+                for lit in all_lits:
+                    result.start.connect_literal(lit, result.end)
             return result
         return self.parse_whitespace()
 

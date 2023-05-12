@@ -13,18 +13,19 @@ def get_id() -> int:
 
 @dataclass
 class Node:
-    transitions: defaultdict[str, set["Node"]] = field(default_factory=lambda: defaultdict(set))
+    transitions: defaultdict[str, set["Node"]] = field(
+        default_factory=lambda: defaultdict(set)
+    )
     trivial_neigbours: set["Node"] = field(default_factory=set)
-    wildcard_match: set["Node"] = field(default_factory=set)
-    # negative_match: list[tuple[set[str], "Node"]] = field(default_factory=list)
+    negative_match: list[tuple[set[str], "Node"]] = field(default_factory=list)
     _id: int = field(default_factory=get_id)
 
     def match(self, char: str) -> set["Node"]:
-        # result = self.transitions[char]
-        # for dont_match, node in self.negative_match:
-        #     if char not in dont_match:
-        #         result.add(node)
-        return self.transitions[char] | (self.wildcard_match if "!"+char not in transitions)
+        result = self.transitions[char]
+        for dont_match, node in self.negative_match:
+            if char not in dont_match:
+                result.add(node)
+        return result
 
     def connect_trivial(self, n: "Node"):
         self.trivial_neigbours.add(n)
@@ -33,7 +34,10 @@ class Node:
         self.transitions[char].add(n)
 
     def connect_dot(self, n: "Node"):
-        self.wildcard_match.add(n)
+        self.negative_match.append((set(), n))
+
+    def connect_neg(self, neg: set[str], n: "Node"):
+        self.negative_match.append((neg, n))
 
     def __hash__(self) -> int:
         return self._id
@@ -91,11 +95,11 @@ class Automaton:
                     front.add(node)
                     old_to_new[node] = Node()
                 current_new.trivial_neigbours.add(old_to_new[node])
-            for node in current_node.wildcard_match:
+            for neg_match, node in current_node.negative_match:
                 if node not in old_to_new:
                     front.add(node)
                     old_to_new[node] = Node()
-                current_new.wildcard_match = old_to_new[node]
+                current_new.negative_match.append((neg_match, old_to_new[node]))
         return Automaton(new_start, old_to_new[self.end])
 
     def concat(self, other: "Automaton") -> "Automaton":
