@@ -1,4 +1,5 @@
 import reparser
+from optimizer import optimize_automaton
 
 
 class Regex:
@@ -26,6 +27,9 @@ class Regex:
             tokens, vars=automaton_vars
         ).parse()
 
+        self.state_machine = optimize_automaton(self.state_machine)
+        self.partial_state_machine = optimize_automaton(self.partial_state_machine)
+
     def full_match(self, haystack) -> bool:
         return self._match(haystack, self.state_machine)
 
@@ -45,10 +49,10 @@ class Regex:
 
     @staticmethod
     def _get_all_matches(nodes: set, c: str) -> set:
-            new_nodes = set()
-            for node in nodes:
-                new_nodes.update(node.match(c))
-            return new_nodes
+        new_nodes = set()
+        for node in nodes:
+            new_nodes.update(node.match(c))
+        return new_nodes
 
     @staticmethod
     def _get_all_trivial(nodes: set) -> set:
